@@ -1,3 +1,4 @@
+// database/connect.go (atau file database.go kamu yang sekarang)
 package database
 
 import (
@@ -13,18 +14,19 @@ import (
 var DB *sql.DB
 
 func Connect() {
-	var connStr string
 	dbURL := os.Getenv("DATABASE_URL")
+	var connStr string
 
 	if dbURL != "" {
-		// Tambahkan sslmode=require jika belum ada
+		// Pastikan sslmode ada
 		if !strings.Contains(dbURL, "sslmode=") {
+			// Jika URL sudah punya query params “?”, tambahkan “&”… tapi untuk sederhana:
 			dbURL += "?sslmode=require"
 		}
 		connStr = dbURL
-		fmt.Println("📦 Menggunakan DATABASE_URL dari environment Railway")
+		fmt.Println("📦 Menggunakan DATABASE_URL dari environment")
 	} else {
-		fmt.Println("⚠️ DATABASE_URL tidak ditemukan, menggunakan konfigurasi lokal (.env)")
+		fmt.Println("⚠️ DATABASE_URL tidak ditemukan, fallback ke konfigurasi lokal")
 		connStr = fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			os.Getenv("DB_HOST"),
@@ -34,6 +36,9 @@ func Connect() {
 			os.Getenv("DB_NAME"),
 		)
 	}
+
+	// Debug print koneksi string (hati-hati, ini bisa mengekspos password, gunakan sementara saja)
+	fmt.Println("ConnString:", connStr)
 
 	var err error
 	DB, err = sql.Open("postgres", connStr)

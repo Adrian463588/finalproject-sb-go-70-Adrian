@@ -1,37 +1,52 @@
-// file: main.go
+// main.go
 package main
 
 import (
+	"fmt"
+	"log"
+	"os"
+
 	"go-notes-api/database"
 	"go-notes-api/handler"
 	"go-notes-api/middleware"
-	"log"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-
-	// Muat variabel dari .env di awal aplikasi
-	err := godotenv.Load() // <-- TAMBAHKAN BARIS INI
-	if err != nil {
-		log.Println("Error loading .env file")
+	// Muat variabel dari .env (jika ada) — tapi ini hanya berlaku lokal / jika ada file .env di container
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️ Error loading .env file:", err)
 	}
-	
+
+	// Debug print variabel penting (sementara)
+	fmt.Println("---- ENV VARS ----")
+	fmt.Println("DATABASE_URL =", os.Getenv("DATABASE_URL"))
+	fmt.Println("DB_HOST =", os.Getenv("DB_HOST"))
+	fmt.Println("DB_PORT =", os.Getenv("DB_PORT"))
+	fmt.Println("PORT =", os.Getenv("PORT"))
+	fmt.Println("------------------")
+
+	// Hubungkan ke database
 	database.Connect()
 
-	router := gin.Default()
+	// Set mode Gin — harus dilakukan *sebelum* membuat router
+	gin.SetMode(gin.ReleaseMode) // agar tidak dalam debug mode di produksi
+	// Alternatif: bisa set GIN_MODE=release di env Railway juga
 
-	// Grup untuk route publik (tidak perlu token)
+	router := gin.New()
+	// Tambahkan middleware bawaan: logger & recovery
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+
+	// Routes
 	public := router.Group("/api/users")
 	{
 		public.POST("/register", handler.RegisterUser)
 		public.POST("/login", handler.LoginUser)
 	}
 
-	// Grup untuk route yang dilindungi JWT
 	protected := router.Group("/api")
 	protected.Use(middleware.AuthMiddleware())
 	{
@@ -50,5 +65,9 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	log.Fatal(router.Run(":" + port))
+	log.Printf("Server akan berjalan di port :%s\n", port)
+	err := router.Run(":" + port)
+	if err != nil {
+		log.Fatal("❌ Gagal menjalankan server:", err)
+	}
 }
