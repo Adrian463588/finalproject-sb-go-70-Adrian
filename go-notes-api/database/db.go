@@ -14,8 +14,8 @@ var DB *sql.DB
 func Connect() {
 	var connStr string
 
+	// Railway menyediakan DATABASE_URL secara otomatis
 	if os.Getenv("DATABASE_URL") != "" {
-		// Railway membutuhkan SSL koneksi aktif
 		connStr = os.Getenv("DATABASE_URL")
 
 		// Tambahkan sslmode=require jika belum ada di URL
@@ -23,6 +23,7 @@ func Connect() {
 			connStr += "?sslmode=require"
 		}
 	} else {
+		// Untuk koneksi lokal tanpa SSL
 		connStr = fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			os.Getenv("DB_HOST"),
@@ -48,12 +49,19 @@ func Connect() {
 }
 
 func containsSSLMode(connStr string) bool {
-	return len(connStr) >= 12 && ( // minimal panjang url
+	return len(connStr) >= 12 && ( // minimal panjang URL
 		contains(connStr, "sslmode=") ||
 			contains(connStr, "?sslmode="))
 }
 
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && ( // simple string check
-		len(s) >= len(substr) && (s == substr || (len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))))
+	if len(s) < len(substr) {
+		return false
+	}
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
