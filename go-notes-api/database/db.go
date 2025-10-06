@@ -12,12 +12,17 @@ import (
 
 var DB *sql.DB
 
-func Connect() {
-	dbURL := os.Getenv("DATABASE_URL")
+func Connect() error {
+	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	var connStr string
 
 	if dbURL != "" {
-		// Pastikan sslmode diset (Railway butuh sslmode=require)
+		// Pastikan format sesuai PostgreSQL
+		if strings.HasPrefix(dbURL, "postgres://") {
+			dbURL = strings.Replace(dbURL, "postgres://", "postgresql://", 1)
+		}
+
+		// Tambah sslmode jika belum ada
 		if !strings.Contains(dbURL, "sslmode=") {
 			if strings.Contains(dbURL, "?") {
 				dbURL += "&sslmode=require"
@@ -25,10 +30,11 @@ func Connect() {
 				dbURL += "?sslmode=require"
 			}
 		}
+
 		connStr = dbURL
-		log.Println("📦 Menggunakan DATABASE_URL dari environment")
+		log.Println("📦 Menggunakan DATABASE_URL dari Railway environment")
 	} else {
-		// Fallback ke konfigurasi lokal (biasanya digunakan saat development)
+		// Fallback lokal (dev only)
 		log.Println("⚠️  DATABASE_URL tidak ditemukan, menggunakan konfigurasi lokal")
 		connStr = fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -42,13 +48,14 @@ func Connect() {
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("❌ Gagal membuka koneksi database: %v", err)
+		return fmt.Errorf("gagal membuka koneksi database: %v", err)
 	}
 
 	if err = db.Ping(); err != nil {
-		log.Fatalf("❌ Database tidak bisa dijangkau: %v", err)
+		return fmt.Errorf("database tidak bisa dijangkau: %v", err)
 	}
 
 	DB = db
-	log.Println("✅ Berhasil terhubung ke database!")
+	log.Println("✅ Database berhasil terhubung!")
+	return nil
 }

@@ -13,26 +13,23 @@ import (
 )
 
 func main() {
-	// Muat environment dari file .env (opsional)
-	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️  Tidak menemukan file .env (ini normal di production)")
-	}
+	// Load .env hanya jika file ada (di lokal)
+	_ = godotenv.Load()
 
 	// Hubungkan ke database
-	database.Connect()
-
-	// Set mode Gin
-	ginMode := os.Getenv("GIN_MODE")
-	if ginMode == "" {
-		ginMode = gin.ReleaseMode
+	if err := database.Connect(); err != nil {
+		log.Fatalf("❌ Gagal koneksi ke database: %v", err)
 	}
-	gin.SetMode(ginMode)
 
-	// Buat router baru
+	// Gunakan mode release jika tidak diatur
+	mode := os.Getenv("GIN_MODE")
+	if mode == "" {
+		mode = gin.ReleaseMode
+	}
+	gin.SetMode(mode)
+
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
-
-	// ====== ROUTES ======
 
 	// Public routes
 	public := router.Group("/api/users")
@@ -59,13 +56,12 @@ func main() {
 		}
 	}
 
-	// Jalankan server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("🚀 Server berjalan di port :%s\n", port)
+	log.Printf("🚀 Server berjalan di port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("❌ Gagal menjalankan server: %v", err)
 	}
