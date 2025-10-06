@@ -269,9 +269,18 @@ Kirim lagi → favorit dibatalkan
 
 ---
 
+# 🚀 Project Documentation
+
+---
+
 ## 🧑‍💻 Author
 
 **Adrian Syah Abidin**
-🔗 [Railway Deployment Link](https://railway.com/project/5d4a250b-62f0-46e5-961d-fdeb868c41c7?environmentId=b2bc2b4e-e7f9-4623-b3da-33c3ef99f7ef)
 
 ---
+
+## 🔗 Project Links
+
+* **Railway Deployment:** [Railway Deployment Link](https://railway.com/project/5d4a250b-62f0-46e5-961d-fdeb868c41c7?environmentId=b2bc2b4e-e7f9-4623-b3da-33c3ef99f7ef)
+* **Postman Collection:** [Download JSON Postman Collection (Google Drive)](https://drive.google.com/file/d/100-VDcejj00rBn7At7xXsGZhOfjGn2-3/view?usp=sharing)
+* **Video Reference:** [Video Tutorial/Penjelasan (Mulai di 00:00:44)](https://youtu.be/H7RflJivh28?si=3yuPuATwwtULH689&t=44)
