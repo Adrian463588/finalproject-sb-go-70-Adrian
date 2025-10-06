@@ -1,4 +1,3 @@
-// database/connect.go (atau file database.go kamu yang sekarang)
 package database
 
 import (
@@ -18,15 +17,19 @@ func Connect() {
 	var connStr string
 
 	if dbURL != "" {
-		// Pastikan sslmode ada
+		// Pastikan sslmode diset (Railway butuh sslmode=require)
 		if !strings.Contains(dbURL, "sslmode=") {
-			// Jika URL sudah punya query params “?”, tambahkan “&”… tapi untuk sederhana:
-			dbURL += "?sslmode=require"
+			if strings.Contains(dbURL, "?") {
+				dbURL += "&sslmode=require"
+			} else {
+				dbURL += "?sslmode=require"
+			}
 		}
 		connStr = dbURL
-		fmt.Println("📦 Menggunakan DATABASE_URL dari environment")
+		log.Println("📦 Menggunakan DATABASE_URL dari environment")
 	} else {
-		fmt.Println("⚠️ DATABASE_URL tidak ditemukan, fallback ke konfigurasi lokal")
+		// Fallback ke konfigurasi lokal (biasanya digunakan saat development)
+		log.Println("⚠️  DATABASE_URL tidak ditemukan, menggunakan konfigurasi lokal")
 		connStr = fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			os.Getenv("DB_HOST"),
@@ -37,19 +40,15 @@ func Connect() {
 		)
 	}
 
-	// Debug print koneksi string (hati-hati, ini bisa mengekspos password, gunakan sementara saja)
-	fmt.Println("ConnString:", connStr)
-
-	var err error
-	DB, err = sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("❌ Gagal membuka koneksi ke database:", err)
+		log.Fatalf("❌ Gagal membuka koneksi database: %v", err)
 	}
 
-	err = DB.Ping()
-	if err != nil {
-		log.Fatal("❌ Database tidak dapat dijangkau:", err)
+	if err = db.Ping(); err != nil {
+		log.Fatalf("❌ Database tidak bisa dijangkau: %v", err)
 	}
 
-	fmt.Println("✅ Berhasil terhubung ke database!")
+	DB = db
+	log.Println("✅ Berhasil terhubung ke database!")
 }

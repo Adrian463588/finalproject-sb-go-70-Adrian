@@ -1,8 +1,6 @@
-// main.go
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -15,59 +13,60 @@ import (
 )
 
 func main() {
-	// Muat variabel dari .env (jika ada) — tapi ini hanya berlaku lokal / jika ada file .env di container
+	// Muat environment dari file .env (opsional)
 	if err := godotenv.Load(); err != nil {
-		log.Println("⚠️ Error loading .env file:", err)
+		log.Println("⚠️  Tidak menemukan file .env (ini normal di production)")
 	}
-
-	// Debug print variabel penting (sementara)
-	fmt.Println("---- ENV VARS ----")
-	fmt.Println("DATABASE_URL =", os.Getenv("DATABASE_URL"))
-	fmt.Println("DB_HOST =", os.Getenv("DB_HOST"))
-	fmt.Println("DB_PORT =", os.Getenv("DB_PORT"))
-	fmt.Println("PORT =", os.Getenv("PORT"))
-	fmt.Println("------------------")
 
 	// Hubungkan ke database
 	database.Connect()
 
-	// Set mode Gin — harus dilakukan *sebelum* membuat router
-	gin.SetMode(gin.ReleaseMode) // agar tidak dalam debug mode di produksi
-	// Alternatif: bisa set GIN_MODE=release di env Railway juga
+	// Set mode Gin
+	ginMode := os.Getenv("GIN_MODE")
+	if ginMode == "" {
+		ginMode = gin.ReleaseMode
+	}
+	gin.SetMode(ginMode)
 
+	// Buat router baru
 	router := gin.New()
-	// Tambahkan middleware bawaan: logger & recovery
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	router.Use(gin.Logger(), gin.Recovery())
 
-	// Routes
+	// ====== ROUTES ======
+
+	// Public routes
 	public := router.Group("/api/users")
 	{
 		public.POST("/register", handler.RegisterUser)
 		public.POST("/login", handler.LoginUser)
 	}
 
+	// Protected routes (JWT required)
 	protected := router.Group("/api")
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.GET("/users/profile", handler.GetUserProfile)
 
-		protected.GET("/notes", handler.GetAllNotes)
-		protected.POST("/notes", handler.CreateNote)
-		protected.GET("/notes/favorites", handler.GetFavoriteNotes)
-		protected.GET("/notes/:id", handler.GetNoteByID)
-		protected.PUT("/notes/:id", handler.UpdateNote)
-		protected.DELETE("/notes/:id", handler.DeleteNote)
-		protected.PUT("/notes/:id/favorite", handler.ToggleFavoriteNote)
+		notes := protected.Group("/notes")
+		{
+			notes.GET("", handler.GetAllNotes)
+			notes.POST("", handler.CreateNote)
+			notes.GET("/favorites", handler.GetFavoriteNotes)
+			notes.GET("/:id", handler.GetNoteByID)
+			notes.PUT("/:id", handler.UpdateNote)
+			notes.DELETE("/:id", handler.DeleteNote)
+			notes.PUT("/:id/favorite", handler.ToggleFavoriteNote)
+		}
 	}
 
+	// Jalankan server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("Server akan berjalan di port :%s\n", port)
-	err := router.Run(":" + port)
-	if err != nil {
-		log.Fatal("❌ Gagal menjalankan server:", err)
+
+	log.Printf("🚀 Server berjalan di port :%s\n", port)
+	if err := router.Run(":" + port); err != nil {
+		log.Fatalf("❌ Gagal menjalankan server: %v", err)
 	}
 }
