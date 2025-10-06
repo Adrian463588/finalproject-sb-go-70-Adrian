@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -13,17 +14,17 @@ var DB *sql.DB
 
 func Connect() {
 	var connStr string
+	dbURL := os.Getenv("DATABASE_URL")
 
-	// Railway menyediakan DATABASE_URL secara otomatis
-	if os.Getenv("DATABASE_URL") != "" {
-		connStr = os.Getenv("DATABASE_URL")
-
-		// Tambahkan sslmode=require jika belum ada di URL
-		if !containsSSLMode(connStr) {
-			connStr += "?sslmode=require"
+	if dbURL != "" {
+		// Tambahkan sslmode=require jika belum ada
+		if !strings.Contains(dbURL, "sslmode=") {
+			dbURL += "?sslmode=require"
 		}
+		connStr = dbURL
+		fmt.Println("📦 Menggunakan DATABASE_URL dari environment Railway")
 	} else {
-		// Untuk koneksi lokal tanpa SSL
+		fmt.Println("⚠️ DATABASE_URL tidak ditemukan, menggunakan konfigurasi lokal (.env)")
 		connStr = fmt.Sprintf(
 			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			os.Getenv("DB_HOST"),
@@ -46,22 +47,4 @@ func Connect() {
 	}
 
 	fmt.Println("✅ Berhasil terhubung ke database!")
-}
-
-func containsSSLMode(connStr string) bool {
-	return len(connStr) >= 12 && ( // minimal panjang URL
-		contains(connStr, "sslmode=") ||
-			contains(connStr, "?sslmode="))
-}
-
-func contains(s, substr string) bool {
-	if len(s) < len(substr) {
-		return false
-	}
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
