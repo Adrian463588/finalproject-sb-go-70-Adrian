@@ -1,23 +1,37 @@
-# Gunakan base image Go yang sesuai dengan versi di go.mod
-FROM golang:1.25-alpine
+# Stage 1: build the Go binary
+FROM golang:1.25-alpine AS builder
 
-# Tentukan direktori kerja di dalam container
+# Install git (jika modul menggunakan git) dan ca-certificates
+RUN apk add --no-cache git ca-certificates
+
 WORKDIR /app
 
-# Salin file go.mod dan go.sum terlebih dahulu
+# Salin go.mod / go.sum dahulu agar caching layer dependency optimal
 COPY go.mod go.sum ./
-
-# Download semua dependencies
 RUN go mod download
 
-# Salin semua source code ke dalam container
+# Salin source code
 COPY . .
 
-# Build aplikasi Go
-RUN go build -o main .
+# Build binary statically (optional flags bisa ditambahkan)
+RUN CGO_ENABLED=0 GOOS=linux go build -o /notes-app
 
-# Tentukan port yang digunakan oleh aplikasi
+# Stage 2: final minimal image
+FROM alpine:latest
+
+# Tambahkan sertifikat SSL / CA supaya HTTPs request bisa bekerja
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+
+# Salin binary dari stage builder
+COPY --from=builder /notes-app .
+
+# Jika kamu punya file konfigurasi atau migration scripts, bisa di-copy juga
+# COPY --from=builder /app/migrations ./migrations
+
+# Expose port aplikasi kamu
 EXPOSE 8080
 
-# Jalankan aplikasi
-CMD ["./main"]
+# Jalankan binary
+CMD [ "./notes-app" ]
