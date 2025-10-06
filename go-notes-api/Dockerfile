@@ -1,31 +1,23 @@
-# Gunakan base image Go
-# Memulai dengan "dapur" bersih yang sudah terinstal Go versi 1.21
-FROM golang:1.21-alpine
+# Gunakan base image Go yang sesuai dengan versi di go.mod
+FROM golang:1.25-alpine
 
-# Tentukan direktori kerja
-# Di dalam dapur itu, kita akan bekerja di dalam sebuah nampan bernama /app
+# Tentukan direktori kerja di dalam container
 WORKDIR /app
 
-# Salin file go.mod dan go.sum
-# Bawa "daftar belanjaan" (dependencies) kita ke nampan terlebih dahulu
+# Salin file go.mod dan go.sum terlebih dahulu
 COPY go.mod go.sum ./
 
 # Download semua dependencies
-# Suruh Go untuk "membeli" semua bahan sesuai daftar belanjaan
 RUN go mod download
 
-# Salin semua source code
-# Sekarang, bawa semua "buku resep" (kode .go kita) ke dalam nampan
+# Salin semua source code ke dalam container
 COPY . .
 
-# Build aplikasi
-# "Masak" semua bahan dan resep menjadi satu kue jadi bernama "main"
+# Build aplikasi Go
 RUN go build -o main .
 
-# Expose port
-# Beri label pada kotak kue: "Sajikan melalui lubang nomor 8080"
+# Tentukan port yang digunakan oleh aplikasi
 EXPOSE 8080
 
-# Perintah untuk menjalankan aplikasi
-# Tulis instruksi terakhir di kotak: "Untuk memulai, jalankan 'main'"
+# Jalankan aplikasi
 CMD ["./main"]
