@@ -1,5 +1,5 @@
 # file: dbconfig.yml
 development:
-    dialect: postgres
-    datasource: "user=postgres password=secret dbname=notes_db sslmode=disable"
-    dir: migrations
+  dialect: postgres
+  datasource: "user=postgres password=postgres dbname=notes_db sslmode=disable"
+  dir: migrations

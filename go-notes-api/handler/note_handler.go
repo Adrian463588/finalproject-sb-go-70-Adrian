@@ -19,7 +19,6 @@ func CreateNote(c *gin.Context) {
 	}
 
 	// Ambil userID dari context yang di-set oleh middleware
-	// Menggunakan "userID" (dengan D besar) agar konsisten
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -28,9 +27,8 @@ func CreateNote(c *gin.Context) {
 
 	// Simpan note ke database dengan user_id yang sesuai
 	sqlStatement := `INSERT INTO notes (user_id, title, content) VALUES ($1, $2, $3) RETURNING id`
-	// Pastikan untuk menyetel UserID di struct agar respons JSON konsisten
 	newNote.UserID = userID.(int)
-	
+
 	err := database.DB.QueryRow(sqlStatement, newNote.UserID, newNote.Title, newNote.Content).Scan(&newNote.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create note"})
@@ -77,7 +75,6 @@ func GetNoteByID(c *gin.Context) {
 
 	sqlStatement := `SELECT id, user_id, title, content, is_favorite FROM notes WHERE id = $1 AND user_id = $2`
 	err = database.DB.QueryRow(sqlStatement, noteID, userID).Scan(&note.ID, &note.UserID, &note.Title, &note.Content, &note.IsFavorite)
-	
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
@@ -115,7 +112,6 @@ func UpdateNote(c *gin.Context) {
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		// Jika 0 baris terpengaruh, berarti note ID tidak ada ATAU bukan milik user
 		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to edit this note"})
 		return
 	}
@@ -142,10 +138,68 @@ func DeleteNote(c *gin.Context) {
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		// Jika 0 baris terpengaruh, berarti note ID tidak ada ATAU bukan milik user
-		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to delete this note"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Note not found or you don't have permission to delete it"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Note deleted successfully"})
+}
+
+// GetFavoriteNotes mengambil semua notes yang ditandai sebagai favorit
+func GetFavoriteNotes(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	query := "SELECT id, user_id, title, content, is_favorite FROM notes WHERE user_id = $1 AND is_favorite = TRUE ORDER BY updated_at DESC"
+	rows, err := database.DB.Query(query, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve favorite notes"})
+		return
+	}
+	defer rows.Close()
+
+	var notes []models.Note
+	for rows.Next() {
+		var note models.Note
+		if err := rows.Scan(&note.ID, &note.UserID, &note.Title, &note.Content, &note.IsFavorite); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan note data"})
+			return
+		}
+		notes = append(notes, note)
+	}
+
+	c.JSON(http.StatusOK, notes)
+}
+
+// ToggleFavoriteNote mengubah status is_favorite pada sebuah note
+func ToggleFavoriteNote(c *gin.Context) {
+	noteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid note ID"})
+		return
+	}
+
+	userID, _ := c.Get("userID")
+
+	query := "UPDATE notes SET is_favorite = NOT is_favorite, updated_at = NOW() WHERE id = $1 AND user_id = $2"
+	result, err := database.DB.Exec(query, noteID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update favorite status"})
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check affected rows"})
+		return
+	}
+	if rowsAffected == 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Note not found or you don't have permission to change it"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Note favorite status toggled"})
 }

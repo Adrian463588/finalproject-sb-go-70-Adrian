@@ -7,10 +7,19 @@ import (
 	"go-notes-api/middleware"
 	"log"
 	"os"
+
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+
+	// Muat variabel dari .env di awal aplikasi
+	err := godotenv.Load() // <-- TAMBAHKAN BARIS INI
+	if err != nil {
+		log.Println("Error loading .env file")
+	}
+	
 	database.Connect()
 
 	router := gin.Default()
